@@ -2,7 +2,9 @@
 
 Provides a single ``apply_theme(app)`` entrypoint that installs a Fusion
 palette and a stylesheet which gives the app a clean, flat look with rounded
-controls, a dim chrome and a softened red accent. UI font stack prefers native system fonts (install ``Plus Jakarta Sans`` to match web branding).
+controls, a dim chrome and a softened red accent. The font stack prefers
+native system fonts; install Plus Jakarta Sans for closer parity with web
+branding.
 """
 
 from __future__ import annotations

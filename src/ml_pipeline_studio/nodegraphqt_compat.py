@@ -13,6 +13,12 @@ def apply_nodegraphqt_compat() -> None:
         return
 
     try:
+        from NodeGraphQt.custom_widgets.properties_bin import (
+            node_property_widgets as _prop_widgets,
+        )
+        from NodeGraphQt.custom_widgets.properties_bin import (
+            prop_widgets_base as _base,
+        )
         from PySide6.QtCore import Qt, Signal
         from PySide6.QtWidgets import (
             QAbstractSpinBox,
@@ -22,13 +28,6 @@ def apply_nodegraphqt_compat() -> None:
             QLabel,
             QSpinBox,
             QTabWidget,
-        )
-
-        from NodeGraphQt.custom_widgets.properties_bin import (
-            node_property_widgets as _prop_widgets,
-        )
-        from NodeGraphQt.custom_widgets.properties_bin import (
-            prop_widgets_base as _base,
         )
     except ImportError:
         return
