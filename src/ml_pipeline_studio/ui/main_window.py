@@ -5,19 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from NodeGraphQt import NodeGraph, PropertiesBinWidget
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QAction, QKeySequence, QShowEvent
+from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
-    QFrame,
     QInputDialog,
     QMainWindow,
     QMessageBox,
-    QTabWidget,
     QTextEdit,
-    QVBoxLayout,
-    QWidget,
 )
 
 from ml_pipeline_studio.execution.engine import run_pipeline
@@ -30,10 +26,7 @@ from ml_pipeline_studio.ui.graph_bridge import (
     register_studio_nodes,
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
-from ml_pipeline_studio.ui.terminal_panel import TerminalPanel
-from ml_pipeline_studio.ui.theme import GlassPanelHost, apply_studio_chrome, connect_chrome_refresh
-from ml_pipeline_studio.ui.tutorial_dialog import TutorialDialog
-from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
+from ml_pipeline_studio.ui.header_nav import HeaderNavBar
 
 
 def _pytorch_image_template() -> PipelineDocument:
@@ -156,118 +149,88 @@ class _RunWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setObjectName("StudioShell")
         self.setWindowTitle("ML Pipeline Studio")
-        self.resize(1280, 820)
+        self.resize(1200, 800)
 
         self._graph = NodeGraph()
         register_studio_nodes(self._graph)
         self._settings = GlobalSettings()
         self._current_path: Path | None = None
 
-        graph_widget = self._graph.widget
-        canvas_host = QWidget()
-        canvas_host.setObjectName("CanvasHost")
-        canvas_layout = QVBoxLayout(canvas_host)
-        canvas_layout.setContentsMargins(10, 10, 10, 10)
-        canvas_layout.addWidget(graph_widget)
-        self.setCentralWidget(canvas_host)
+        self._header = HeaderNavBar(self)
+        self._header.save_clicked.connect(self._save)
+        self._header.run_clicked.connect(self._run_pipeline)
+        self.setMenuWidget(self._header)
+
+        self.setCentralWidget(self._graph.widget)
 
         self._props = PropertiesBinWidget(node_graph=self._graph)
         dock_p = QDockWidget("Inspector", self)
-        dock_p.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        dock_p.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        dock_p.setWidget(GlassPanelHost(self._props, dock_p))
+        dock_p.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_p)
 
         self._log = QTextEdit()
-        self._log.setObjectName("StudioLog")
         self._log.setReadOnly(True)
-        self._log.setFrameShape(QFrame.Shape.NoFrame)
-        self._terminal = TerminalPanel()
-        log_tabs = QTabWidget()
-        log_tabs.addTab(self._log, "Run log")
-        log_tabs.addTab(self._terminal, "Terminal")
-
         dock_l = QDockWidget("Run log", self)
-        dock_l.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea)
-        dock_l.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        dock_l.setWidget(GlassPanelHost(log_tabs, dock_l))
+        dock_l.setWidget(self._log)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_l)
+
+        self.statusBar().showMessage("Ready")
 
         self._build_menu()
 
-        apply_studio_chrome(self)
-        connect_chrome_refresh(self)
-
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
-        self._welcome_shown = False
-
-    def showEvent(self, event: QShowEvent) -> None:
-        super().showEvent(event)
-        if not self._welcome_shown:
-            self._welcome_shown = True
-            QTimer.singleShot(0, self._show_welcome_dialog)
-
-    def _show_welcome_dialog(self) -> None:
-        dlg = WelcomeDialog(self)
-        dlg.exec()
-        if dlg.choice == "open":
-            self._open()
-        elif dlg.choice == "new":
-            self._new()
-            TutorialDialog(self).exec()
 
     def _build_menu(self) -> None:
-        mb = self.menuBar()
-        file_m = mb.addMenu("&File")
-        act_new = QAction("&New", self)
+        file_m = self._header.menu("File")
+        act_new = QAction("New", self)
         act_new.setShortcut(QKeySequence.StandardKey.New)
         act_new.triggered.connect(self._new)
         file_m.addAction(act_new)
-        act_open = QAction("&Open…", self)
+        act_open = QAction("Open…", self)
         act_open.setShortcut(QKeySequence.StandardKey.Open)
         act_open.triggered.connect(self._open)
         file_m.addAction(act_open)
-        act_save = QAction("&Save", self)
+        act_save = QAction("Save", self)
         act_save.setShortcut(QKeySequence.StandardKey.Save)
         act_save.triggered.connect(self._save)
         file_m.addAction(act_save)
-        act_save_as = QAction("Save &As…", self)
+        act_save_as = QAction("Save As…", self)
+        act_save_as.setShortcut(QKeySequence.StandardKey.SaveAs)
         act_save_as.triggered.connect(self._save_as)
         file_m.addAction(act_save_as)
         file_m.addSeparator()
-        act_quit = QAction("&Quit", self)
+        act_quit = QAction("Quit", self)
         act_quit.setShortcut(QKeySequence.StandardKey.Quit)
         act_quit.triggered.connect(self.close)
         file_m.addAction(act_quit)
 
-        tpl_m = mb.addMenu("&Template")
+        tpl_m = self._header.menu("Template")
         act_tpl = QAction("PyTorch image classification…", self)
         act_tpl.triggered.connect(self._template_pt_image)
         tpl_m.addAction(act_tpl)
 
-        add_m = mb.addMenu("&Add node")
+        add_m = self._header.menu("Add Node")
         for kind, ntype in sorted(KIND_TO_NODE_TYPE.items(), key=lambda x: x[0]):
             act = QAction(kind.replace("_", " ").title(), self)
             act.triggered.connect(lambda checked=False, t=ntype: self._add_node(t))
             add_m.addAction(act)
 
-        run_m = mb.addMenu("&Run")
-        act_run = QAction("&Run pipeline", self)
+        run_m = self._header.menu("Run")
+        act_run = QAction("Run pipeline", self)
         act_run.setShortcut("Ctrl+R")
         act_run.triggered.connect(self._run_pipeline)
         run_m.addAction(act_run)
 
-        set_m = mb.addMenu("&Settings")
-        act_set = QAction("Run &settings…", self)
+        set_m = self._header.menu("Settings")
+        act_set = QAction("Run settings…", self)
         act_set.triggered.connect(self._edit_settings)
         set_m.addAction(act_set)
+
+        # Make shortcuts work even though the menu bar is hidden.
+        for action in (act_new, act_open, act_save, act_save_as, act_quit, act_run):
+            self.addAction(action)
 
     def _add_node(self, ntype: str) -> None:
         self._graph.create_node(ntype)
@@ -277,6 +240,7 @@ class MainWindow(QMainWindow):
         self._settings = GlobalSettings()
         self._current_path = None
         self.setWindowTitle("ML Pipeline Studio — Untitled")
+        self._header.set_file_label("Untitled pipeline")
         self._log.clear()
 
     def _open(self) -> None:
@@ -289,6 +253,7 @@ class MainWindow(QMainWindow):
             apply_document_to_graph(self._graph, doc)
             self._current_path = Path(path)
             self.setWindowTitle(f"ML Pipeline Studio — {self._current_path.name}")
+            self._header.set_file_label(self._current_path.name)
         except Exception as e:
             QMessageBox.critical(self, "Open failed", str(e))
 
@@ -308,6 +273,7 @@ class MainWindow(QMainWindow):
         self._save_to(p)
         self._current_path = p
         self.setWindowTitle(f"ML Pipeline Studio — {p.name}")
+        self._header.set_file_label(p.name)
 
     def _save_to(self, path: Path) -> None:
         doc = document_from_graph(self._graph, self._settings)
@@ -319,6 +285,7 @@ class MainWindow(QMainWindow):
         apply_document_to_graph(self._graph, doc)
         self._current_path = None
         self.setWindowTitle("ML Pipeline Studio — Template (unsaved)")
+        self._header.set_file_label("Template (unsaved)")
         QMessageBox.information(
             self,
             "Template loaded",
@@ -371,6 +338,8 @@ class MainWindow(QMainWindow):
 
         self._log.clear()
         self._append_log("Starting pipeline run…")
+        self._header.set_running(True)
+        self.statusBar().showMessage("Running pipeline…")
 
         self._thread = QThread()
         self._worker = _RunWorker(doc)
@@ -386,10 +355,14 @@ class MainWindow(QMainWindow):
 
     def _on_run_finished(self) -> None:
         self._append_log("Finished successfully.")
+        self._header.set_running(False)
+        self.statusBar().showMessage("Pipeline finished successfully", 5000)
         QMessageBox.information(self, "Run complete", "Pipeline finished successfully.")
 
     def _on_run_failed(self, msg: str) -> None:
         self._append_log(f"ERROR: {msg}")
+        self._header.set_running(False)
+        self.statusBar().showMessage("Pipeline failed", 5000)
         QMessageBox.critical(self, "Run failed", msg)
 
     def _cleanup_thread(self) -> None:
