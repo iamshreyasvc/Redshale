@@ -152,8 +152,7 @@ class MainWindow(QMainWindow):
         graph_widget = self._graph.widget
         self.setCentralWidget(graph_widget)
 
-        self._props = PropertiesBinWidget()
-        self._props.set_node_graph(self._graph)
+        self._props = PropertiesBinWidget(node_graph=self._graph)
         dock_p = QDockWidget("Inspector", self)
         dock_p.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_p)
