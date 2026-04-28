@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from NodeGraphQt import NodeGraph, PropertiesBinWidget
-from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtGui import QAction, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMainWindow,
     QMessageBox,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -29,7 +30,10 @@ from ml_pipeline_studio.ui.graph_bridge import (
     register_studio_nodes,
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
+from ml_pipeline_studio.ui.terminal_panel import TerminalPanel
 from ml_pipeline_studio.ui.theme import GlassPanelHost, apply_studio_chrome, connect_chrome_refresh
+from ml_pipeline_studio.ui.tutorial_dialog import TutorialDialog
+from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
 
 
 def _pytorch_image_template() -> PipelineDocument:
@@ -182,12 +186,17 @@ class MainWindow(QMainWindow):
         self._log.setObjectName("StudioLog")
         self._log.setReadOnly(True)
         self._log.setFrameShape(QFrame.Shape.NoFrame)
+        self._terminal = TerminalPanel()
+        log_tabs = QTabWidget()
+        log_tabs.addTab(self._log, "Run log")
+        log_tabs.addTab(self._terminal, "Terminal")
+
         dock_l = QDockWidget("Run log", self)
         dock_l.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea)
         dock_l.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
         )
-        dock_l.setWidget(GlassPanelHost(self._log, dock_l))
+        dock_l.setWidget(GlassPanelHost(log_tabs, dock_l))
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_l)
 
         self._build_menu()
@@ -197,6 +206,22 @@ class MainWindow(QMainWindow):
 
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
+        self._welcome_shown = False
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if not self._welcome_shown:
+            self._welcome_shown = True
+            QTimer.singleShot(0, self._show_welcome_dialog)
+
+    def _show_welcome_dialog(self) -> None:
+        dlg = WelcomeDialog(self)
+        dlg.exec()
+        if dlg.choice == "open":
+            self._open()
+        elif dlg.choice == "new":
+            self._new()
+            TutorialDialog(self).exec()
 
     def _build_menu(self) -> None:
         mb = self.menuBar()

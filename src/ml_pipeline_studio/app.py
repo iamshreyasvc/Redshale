@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import sys
 
+
+from ml_pipeline_studio.nodegraphqt_compat import apply_nodegraphqt_compat
+from ml_pipeline_studio.qt_plugin_bootstrap import apply_qt_plugin_environment
+
+apply_qt_plugin_environment()
+apply_nodegraphqt_compat()
+
 from PySide6.QtWidgets import QApplication
 
 from ml_pipeline_studio.ui.main_window import MainWindow
