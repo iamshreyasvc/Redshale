@@ -21,7 +21,6 @@ This module must run *before* any ``PropertiesBinWidget`` constructs editors.
 
 from __future__ import annotations
 
-
 _PATCHED = False
 
 
@@ -35,6 +34,8 @@ def apply_nodegraphqt_compat() -> None:
     try:
         from NodeGraphQt.custom_widgets.properties_bin import (
             node_property_widgets as _prop_widgets,
+        )
+        from NodeGraphQt.custom_widgets.properties_bin import (
             prop_widgets_base as _base,
         )
     except ImportError:

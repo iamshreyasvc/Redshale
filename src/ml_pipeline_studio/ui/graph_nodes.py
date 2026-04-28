@@ -129,8 +129,20 @@ class TrainPyTorchNode(BaseNode):
             items=["cnn_small", "mlp_tabular"],
             widget_type=W.QCOMBO_BOX.value,
         )
-        _add_param(self, "epochs", 3, widget_type=W.QSPIN_BOX.value, tooltip="Number of full training passes.")
-        _add_param(self, "batch_size", 32, widget_type=W.QSPIN_BOX.value, tooltip="Samples processed per training step.")
+        _add_param(
+            self,
+            "epochs",
+            3,
+            widget_type=W.QSPIN_BOX.value,
+            tooltip="Number of full training passes.",
+        )
+        _add_param(
+            self,
+            "batch_size",
+            32,
+            widget_type=W.QSPIN_BOX.value,
+            tooltip="Samples processed per training step.",
+        )
         _add_param(
             self,
             "learning_rate",
@@ -158,8 +170,20 @@ class TrainTensorFlowNode(BaseNode):
             items=["cnn_small", "mlp_tabular"],
             widget_type=W.QCOMBO_BOX.value,
         )
-        _add_param(self, "epochs", 3, widget_type=W.QSPIN_BOX.value, tooltip="Number of full training passes.")
-        _add_param(self, "batch_size", 32, widget_type=W.QSPIN_BOX.value, tooltip="Samples processed per training step.")
+        _add_param(
+            self,
+            "epochs",
+            3,
+            widget_type=W.QSPIN_BOX.value,
+            tooltip="Number of full training passes.",
+        )
+        _add_param(
+            self,
+            "batch_size",
+            32,
+            widget_type=W.QSPIN_BOX.value,
+            tooltip="Samples processed per training step.",
+        )
         _add_param(
             self,
             "learning_rate",
