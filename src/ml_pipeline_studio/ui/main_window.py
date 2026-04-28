@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from NodeGraphQt import NodeGraph
-from PySide6.QtCore import QObject, QSettings, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QSettings, QStandardPaths, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -248,6 +248,16 @@ class MainWindow(QMainWindow):
     def _add_node(self, ntype: str) -> None:
         self._graph.create_node(ntype)
 
+    def _pipeline_file_dialog_start_dir(self) -> str:
+        """Prefer the current file's folder; otherwise ~/Documents/Redshale (created if missing)."""
+        if self._current_path is not None:
+            return str(self._current_path.parent)
+        docs = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        root = Path(docs) if docs else Path.home()
+        base = root / "Redshale"
+        base.mkdir(parents=True, exist_ok=True)
+        return str(base)
+
     def _new(self) -> None:
         self._graph.clear_session()
         self._settings = GlobalSettings()
@@ -257,7 +267,9 @@ class MainWindow(QMainWindow):
         self._log.clear()
 
     def _open(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Open pipeline", "", "Pipeline JSON (*.json)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open pipeline", self._pipeline_file_dialog_start_dir(), "Pipeline JSON (*.json)"
+        )
         if not path:
             return
         self._open_path(Path(path))
@@ -283,7 +295,9 @@ class MainWindow(QMainWindow):
             self._save_as()
 
     def _save_as(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save pipeline", "", "Pipeline JSON (*.json)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save pipeline", self._pipeline_file_dialog_start_dir(), "Pipeline JSON (*.json)"
+        )
         if not path:
             return
         p = Path(path)
@@ -310,7 +324,8 @@ class MainWindow(QMainWindow):
             self,
             "Template loaded",
             "Set Dataset → data_path to your ImageFolder root (class subfolders), then Run pipeline.\n"
-            "Install ML deps: pip install '.[ml]'",
+            "Install ML deps: pip install '.[ml]'\n\n"
+            "Save pipelines outside the repo: File → Save As… opens in Documents/Redshale by default.",
         )
 
     def _edit_settings(self) -> None:
