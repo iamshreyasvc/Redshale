@@ -1,4 +1,4 @@
-# ML Pipeline Studio
+# Redshale ML Pipeline Studio
 
 macOS-first **desktop app** for building **no-code** ML pipelines as a **node graph**: dataset → preprocess → train (PyTorch or TensorFlow) → evaluate → quality gate → export.
 
