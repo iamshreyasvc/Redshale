@@ -1,15 +1,37 @@
+# CI for the two-stage promotion model:
+#
+#   feature branch (local work) --PR--> dev        (integration; every PR commit runs this workflow)
+#   dev --PR--> main                               (production; tests run again before merge)
+#
+# GitHub cannot enforce "only PRs" from YAML alone. In the repo, set branch protection:
+#
+#   dev:
+#     - Require a pull request before merging
+#     - Require status checks to pass (job: test)
+#     - (Recommended) Require branches to be up to date before merging
+#
+#   main:
+#     - Require a pull request before merging
+#     - Require status checks to pass (job: test)
+#     - (Optional) Restrict who can push, or allow only merges from dev via PR + review
+#
 name: CI
 
 on:
   push:
-    branches: [main, master, dev]
+    branches: [dev, main]
   pull_request:
-    branches: [main, master, dev]
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11"]
     steps:

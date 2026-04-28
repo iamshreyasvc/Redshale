@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from NodeGraphQt import NodeGraph, PropertiesBinWidget
-from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QObject, QSettings, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMainWindow,
     QMessageBox,
+    QTabWidget,
     QTextEdit,
 )
 
@@ -27,6 +28,8 @@ from ml_pipeline_studio.ui.graph_bridge import (
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
 from ml_pipeline_studio.ui.header_nav import HeaderNavBar
+from ml_pipeline_studio.ui.terminal_panel import TerminalPanel
+from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
 
 
 def _pytorch_image_template() -> PipelineDocument:
@@ -151,6 +154,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("ML Pipeline Studio")
         self.resize(1200, 800)
+        self._qsettings = QSettings("ML Pipeline Studio", "ML Pipeline Studio")
 
         self._graph = NodeGraph()
         register_studio_nodes(self._graph)
@@ -171,8 +175,13 @@ class MainWindow(QMainWindow):
 
         self._log = QTextEdit()
         self._log.setReadOnly(True)
+        self._terminal = TerminalPanel(self)
+        self._bottom_tabs = QTabWidget(self)
+        self._bottom_tabs.setObjectName("BottomPanelTabs")
+        self._bottom_tabs.addTab(self._log, "Run log")
+        self._bottom_tabs.addTab(self._terminal, "Terminal")
         dock_l = QDockWidget("Run log", self)
-        dock_l.setWidget(self._log)
+        dock_l.setWidget(self._bottom_tabs)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_l)
 
         self.statusBar().showMessage("Ready")
@@ -181,6 +190,7 @@ class MainWindow(QMainWindow):
 
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
+        QTimer.singleShot(0, self._show_welcome_page)
 
     def _build_menu(self) -> None:
         file_m = self._header.menu("File")
@@ -247,6 +257,9 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Open pipeline", "", "Pipeline JSON (*.json)")
         if not path:
             return
+        self._open_path(Path(path))
+
+    def _open_path(self, path: Path) -> bool:
         try:
             doc = load_document(path)
             self._settings = doc.settings
@@ -254,8 +267,11 @@ class MainWindow(QMainWindow):
             self._current_path = Path(path)
             self.setWindowTitle(f"ML Pipeline Studio — {self._current_path.name}")
             self._header.set_file_label(self._current_path.name)
+            self._remember_recent_file(self._current_path)
+            return True
         except Exception as e:
             QMessageBox.critical(self, "Open failed", str(e))
+            return False
 
     def _save(self) -> None:
         if self._current_path:
@@ -278,6 +294,7 @@ class MainWindow(QMainWindow):
     def _save_to(self, path: Path) -> None:
         doc = document_from_graph(self._graph, self._settings)
         save_document(path, doc)
+        self._remember_recent_file(path)
 
     def _template_pt_image(self) -> None:
         doc = _pytorch_image_template()
@@ -372,3 +389,34 @@ class MainWindow(QMainWindow):
         if self._thread:
             self._thread.deleteLater()
             self._thread = None
+
+    def _recent_files(self) -> list[str]:
+        raw = self._qsettings.value("recent_files", [])
+        if isinstance(raw, str):
+            entries = [raw]
+        elif isinstance(raw, list):
+            entries = [str(x) for x in raw]
+        else:
+            entries = []
+        out: list[str] = []
+        for p in entries:
+            sp = str(Path(p).expanduser())
+            if Path(sp).exists() and sp not in out:
+                out.append(sp)
+        return out[:12]
+
+    def _remember_recent_file(self, path: Path) -> None:
+        p = str(path.expanduser().resolve())
+        recents = [x for x in self._recent_files() if x != p]
+        recents.insert(0, p)
+        self._qsettings.setValue("recent_files", recents[:12])
+
+    def _show_welcome_page(self) -> None:
+        dlg = WelcomeDialog(self._recent_files(), self)
+        dlg.exec()
+        if dlg.choice == "new":
+            self._new()
+        elif dlg.choice == "open":
+            self._open()
+        elif dlg.choice == "open_recent" and dlg.selected_recent:
+            self._open_path(Path(dlg.selected_recent))

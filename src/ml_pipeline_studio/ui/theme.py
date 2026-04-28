@@ -239,4 +239,74 @@ def _build_stylesheet() -> str:
         border-radius: 4px;
         padding: 3px 6px;
     }}
+
+    /* Welcome page */
+    QDialog#WelcomeDialog {{
+        background-color: {c["chrome"]};
+    }}
+    QFrame#WelcomePanel {{
+        background-color: {c["chrome_alt"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 10px;
+    }}
+    QLabel#WelcomeTitle {{
+        color: {c["text_strong"]};
+        font-size: 22px;
+        font-weight: 700;
+    }}
+    QLabel#WelcomeSubtitle {{
+        color: {c["text_dim"]};
+        font-size: 13px;
+    }}
+    QLabel#WelcomeRecentLabel {{
+        color: {c["text"]};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QListWidget#WelcomeRecentList {{
+        background-color: {c["bg"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 8px;
+        padding: 4px;
+    }}
+    QListWidget#WelcomeRecentList::item {{
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: {c["text"]};
+    }}
+    QListWidget#WelcomeRecentList::item:selected {{
+        background-color: {c["accent"]};
+        color: {c["text_strong"]};
+    }}
+    QPushButton#WelcomePrimary {{
+        background-color: {c["accent"]};
+        color: #ffffff;
+        border: 1px solid {c["accent"]};
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-weight: 600;
+    }}
+    QPushButton#WelcomePrimary:hover {{
+        background-color: {c["accent_hi"]};
+    }}
+    QPushButton#WelcomeSecondary {{
+        background-color: {c["chrome"]};
+        color: {c["text"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 6px;
+        padding: 6px 14px;
+    }}
+    QPushButton#WelcomeSecondary:hover {{
+        background-color: {c["header_hi"]};
+    }}
+    QPushButton#WelcomeSkip {{
+        background-color: transparent;
+        color: {c["text_dim"]};
+        border: none;
+        padding: 4px 8px;
+    }}
+    QPushButton#WelcomeSkip:hover {{
+        color: {c["text"]};
+        text-decoration: underline;
+    }}
     """
