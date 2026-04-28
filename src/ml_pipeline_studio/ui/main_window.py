@@ -7,7 +7,17 @@ from pathlib import Path
 from NodeGraphQt import NodeGraph, PropertiesBinWidget
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import QDockWidget, QFileDialog, QInputDialog, QMainWindow, QMessageBox, QTextEdit
+from PySide6.QtWidgets import (
+    QDockWidget,
+    QFileDialog,
+    QFrame,
+    QInputDialog,
+    QMainWindow,
+    QMessageBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ml_pipeline_studio.execution.engine import run_pipeline
 from ml_pipeline_studio.pipeline.document import EdgeRecord, GlobalSettings, NodeRecord, PipelineDocument
@@ -19,6 +29,7 @@ from ml_pipeline_studio.ui.graph_bridge import (
     register_studio_nodes,
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
+from ml_pipeline_studio.ui.theme import GlassPanelHost, apply_studio_chrome, connect_chrome_refresh
 
 
 def _pytorch_image_template() -> PipelineDocument:
@@ -141,8 +152,9 @@ class _RunWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self.setObjectName("StudioShell")
         self.setWindowTitle("ML Pipeline Studio")
-        self.resize(1200, 800)
+        self.resize(1280, 820)
 
         self._graph = NodeGraph()
         register_studio_nodes(self._graph)
@@ -150,20 +162,38 @@ class MainWindow(QMainWindow):
         self._current_path: Path | None = None
 
         graph_widget = self._graph.widget
-        self.setCentralWidget(graph_widget)
+        canvas_host = QWidget()
+        canvas_host.setObjectName("CanvasHost")
+        canvas_layout = QVBoxLayout(canvas_host)
+        canvas_layout.setContentsMargins(10, 10, 10, 10)
+        canvas_layout.addWidget(graph_widget)
+        self.setCentralWidget(canvas_host)
 
         self._props = PropertiesBinWidget(node_graph=self._graph)
         dock_p = QDockWidget("Inspector", self)
-        dock_p.setWidget(self._props)
+        dock_p.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        dock_p.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        dock_p.setWidget(GlassPanelHost(self._props, dock_p))
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_p)
 
         self._log = QTextEdit()
+        self._log.setObjectName("StudioLog")
         self._log.setReadOnly(True)
+        self._log.setFrameShape(QFrame.Shape.NoFrame)
         dock_l = QDockWidget("Run log", self)
-        dock_l.setWidget(self._log)
+        dock_l.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea)
+        dock_l.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        dock_l.setWidget(GlassPanelHost(self._log, dock_l))
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_l)
 
         self._build_menu()
+
+        apply_studio_chrome(self)
+        connect_chrome_refresh(self)
 
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
