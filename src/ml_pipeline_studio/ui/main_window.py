@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from NodeGraphQt import NodeGraph, PropertiesBinWidget
+from NodeGraphQt import NodeGraph
 from PySide6.QtCore import QObject, QSettings, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
@@ -28,6 +28,7 @@ from ml_pipeline_studio.ui.graph_bridge import (
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
 from ml_pipeline_studio.ui.header_nav import HeaderNavBar
+from ml_pipeline_studio.ui.inspector_bin import RedshalePropertiesBinWidget
 from ml_pipeline_studio.ui.terminal_panel import TerminalPanel
 from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
 
@@ -152,9 +153,9 @@ class _RunWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ML Pipeline Studio")
+        self.setWindowTitle("Redshale")
         self.resize(1200, 800)
-        self._qsettings = QSettings("ML Pipeline Studio", "ML Pipeline Studio")
+        self._qsettings = QSettings("Redshale", "Redshale")
 
         self._graph = NodeGraph()
         register_studio_nodes(self._graph)
@@ -168,8 +169,10 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self._graph.widget)
 
-        self._props = PropertiesBinWidget(node_graph=self._graph)
+        self._props = RedshalePropertiesBinWidget(node_graph=self._graph)
+        self._props.setObjectName("InspectorPane")
         dock_p = QDockWidget("Inspector", self)
+        dock_p.setObjectName("InspectorDock")
         dock_p.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_p)
 
@@ -249,7 +252,7 @@ class MainWindow(QMainWindow):
         self._graph.clear_session()
         self._settings = GlobalSettings()
         self._current_path = None
-        self.setWindowTitle("ML Pipeline Studio — Untitled")
+        self.setWindowTitle("Redshale — Untitled")
         self._header.set_file_label("Untitled pipeline")
         self._log.clear()
 
@@ -265,7 +268,7 @@ class MainWindow(QMainWindow):
             self._settings = doc.settings
             apply_document_to_graph(self._graph, doc)
             self._current_path = Path(path)
-            self.setWindowTitle(f"ML Pipeline Studio — {self._current_path.name}")
+            self.setWindowTitle(f"Redshale — {self._current_path.name}")
             self._header.set_file_label(self._current_path.name)
             self._remember_recent_file(self._current_path)
             return True
@@ -288,7 +291,7 @@ class MainWindow(QMainWindow):
             p = p.with_suffix(".json")
         self._save_to(p)
         self._current_path = p
-        self.setWindowTitle(f"ML Pipeline Studio — {p.name}")
+        self.setWindowTitle(f"Redshale — {p.name}")
         self._header.set_file_label(p.name)
 
     def _save_to(self, path: Path) -> None:
@@ -301,7 +304,7 @@ class MainWindow(QMainWindow):
         self._settings = doc.settings
         apply_document_to_graph(self._graph, doc)
         self._current_path = None
-        self.setWindowTitle("ML Pipeline Studio — Template (unsaved)")
+        self.setWindowTitle("Redshale — Template (unsaved)")
         self._header.set_file_label("Template (unsaved)")
         QMessageBox.information(
             self,

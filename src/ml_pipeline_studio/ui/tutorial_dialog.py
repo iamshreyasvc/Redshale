@@ -65,7 +65,7 @@ class TutorialDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("WelcomeDialog")
-        self.setWindowTitle("How to use this app")
+        self.setWindowTitle("How to use Redshale")
         self.setModal(True)
         self.resize(620, 430)
         self.setMinimumSize(560, 390)
@@ -85,7 +85,7 @@ class TutorialDialog(QDialog):
         lay.setContentsMargins(24, 24, 24, 20)
         lay.setSpacing(14)
 
-        title = QLabel("How to use ML Pipeline Studio")
+        title = QLabel("How to use Redshale")
         title.setObjectName("WelcomeTitle")
         lay.addWidget(title)
 

@@ -1,4 +1,4 @@
-# Redshale ML Pipeline Studio
+# Redshale
 
 macOS-first **desktop app** for building **no-code** ML pipelines as a **node graph**: dataset → preprocess → train (PyTorch or TensorFlow) → evaluate → quality gate → export.
 
@@ -48,7 +48,7 @@ This tree is intended to be the root of a **dedicated repo** (not nested in a st
 ```bash
 git init
 git add .
-git commit -m "Initial ML Pipeline Studio scaffold"
+git commit -m "Initial Redshale scaffold"
 git remote add origin https://github.com/<you>/ml-pipeline-studio.git
 git push -u origin main
 ```
@@ -72,4 +72,3 @@ Notarization requires an Apple Developer ID; distribute unsigned builds for loca
 ## License
 
 MIT
-# Redshale

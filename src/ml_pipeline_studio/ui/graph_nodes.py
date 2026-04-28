@@ -1,4 +1,4 @@
-"""NodeGraphQt node types for ML Pipeline Studio."""
+"""NodeGraphQt node types for Redshale."""
 
 from __future__ import annotations
 
@@ -8,7 +8,16 @@ from NodeGraphQt import BaseNode
 from NodeGraphQt.constants import NodePropWidgetEnum as W
 
 IDENT = "studio.ml_pipeline.nodes"
-PARAMS_TAB = "Parameters"
+
+# Inspector tabs — logical groupings (avoid reserved names "Node", "Ports").
+TAB_DATA = "Data"
+TAB_SPLITS = "Splits"
+TAB_TRANSFORM = "Transform"
+TAB_MODEL = "Model"
+TAB_TRAINING = "Training"
+TAB_EVAL = "Evaluation"
+TAB_QUALITY = "Quality gate"
+TAB_EXPORT = "Export"
 
 
 def _add_param(
@@ -18,6 +27,7 @@ def _add_param(
     *,
     widget_type: int,
     tooltip: str,
+    tab: str,
     items: list[str] | None = None,
 ) -> None:
     node.create_property(
@@ -26,7 +36,7 @@ def _add_param(
         items=items,
         widget_type=widget_type,
         widget_tooltip=tooltip,
-        tab=PARAMS_TAB,
+        tab=tab,
     )
 
 
@@ -46,6 +56,7 @@ class DatasetNode(BaseNode):
             tooltip="Data source format used by this pipeline.",
             items=["image_folder", "csv_tabular"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_DATA,
         )
         _add_param(
             self,
@@ -53,6 +64,7 @@ class DatasetNode(BaseNode):
             "",
             widget_type=W.FILE_OPEN.value,
             tooltip="Folder or file path for dataset input.",
+            tab=TAB_DATA,
         )
         _add_param(
             self,
@@ -60,6 +72,7 @@ class DatasetNode(BaseNode):
             "",
             widget_type=W.QLINE_EDIT.value,
             tooltip="Column name containing class labels (CSV mode only).",
+            tab=TAB_DATA,
         )
         _add_param(
             self,
@@ -67,6 +80,7 @@ class DatasetNode(BaseNode):
             0.7,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Fraction of samples used for training.",
+            tab=TAB_SPLITS,
         )
         _add_param(
             self,
@@ -74,6 +88,7 @@ class DatasetNode(BaseNode):
             0.15,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Fraction of samples used for validation.",
+            tab=TAB_SPLITS,
         )
         _add_param(
             self,
@@ -81,6 +96,7 @@ class DatasetNode(BaseNode):
             0.15,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Fraction of samples used for final testing.",
+            tab=TAB_SPLITS,
         )
 
 
@@ -101,6 +117,7 @@ class PreprocessNode(BaseNode):
             tooltip="Preprocessing recipe to apply before training.",
             items=["image_basic", "passthrough", "tabular_standard", "tabular_standardize"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_TRANSFORM,
         )
         _add_param(
             self,
@@ -108,6 +125,7 @@ class PreprocessNode(BaseNode):
             224,
             widget_type=W.QSPIN_BOX.value,
             tooltip="Target image width and height in pixels.",
+            tab=TAB_TRANSFORM,
         )
 
 
@@ -128,6 +146,7 @@ class TrainPyTorchNode(BaseNode):
             tooltip="Model architecture preset.",
             items=["cnn_small", "mlp_tabular"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_MODEL,
         )
         _add_param(
             self,
@@ -135,6 +154,7 @@ class TrainPyTorchNode(BaseNode):
             3,
             widget_type=W.QSPIN_BOX.value,
             tooltip="Number of full training passes.",
+            tab=TAB_TRAINING,
         )
         _add_param(
             self,
@@ -142,6 +162,7 @@ class TrainPyTorchNode(BaseNode):
             32,
             widget_type=W.QSPIN_BOX.value,
             tooltip="Samples processed per training step.",
+            tab=TAB_TRAINING,
         )
         _add_param(
             self,
@@ -149,6 +170,7 @@ class TrainPyTorchNode(BaseNode):
             0.001,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Optimizer step size for parameter updates.",
+            tab=TAB_TRAINING,
         )
 
 
@@ -169,6 +191,7 @@ class TrainTensorFlowNode(BaseNode):
             tooltip="Model architecture preset.",
             items=["cnn_small", "mlp_tabular"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_MODEL,
         )
         _add_param(
             self,
@@ -176,6 +199,7 @@ class TrainTensorFlowNode(BaseNode):
             3,
             widget_type=W.QSPIN_BOX.value,
             tooltip="Number of full training passes.",
+            tab=TAB_TRAINING,
         )
         _add_param(
             self,
@@ -183,6 +207,7 @@ class TrainTensorFlowNode(BaseNode):
             32,
             widget_type=W.QSPIN_BOX.value,
             tooltip="Samples processed per training step.",
+            tab=TAB_TRAINING,
         )
         _add_param(
             self,
@@ -190,6 +215,7 @@ class TrainTensorFlowNode(BaseNode):
             0.001,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Optimizer step size for parameter updates.",
+            tab=TAB_TRAINING,
         )
 
 
@@ -211,6 +237,7 @@ class EvaluateNode(BaseNode):
             tooltip="Dataset split used to compute metrics.",
             items=["val", "test"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_EVAL,
         )
 
 
@@ -229,6 +256,7 @@ class ValidateNode(BaseNode):
             0.5,
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Minimum required accuracy to pass this quality gate.",
+            tab=TAB_QUALITY,
         )
 
 
@@ -248,6 +276,7 @@ class ExportNode(BaseNode):
             tooltip="Serialization format for the trained model.",
             items=["pt", "onnx", "saved_model"],
             widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_EXPORT,
         )
         _add_param(
             self,
@@ -255,6 +284,7 @@ class ExportNode(BaseNode):
             "",
             widget_type=W.QLINE_EDIT.value,
             tooltip="Output path for exported model artifacts.",
+            tab=TAB_EXPORT,
         )
 
 

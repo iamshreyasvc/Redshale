@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "settings": {
+    "random_seed": 42,
+    "run_output_dir": "./ml_runs",
+    "pytorch_device": "auto",
+    "tensorflow_device": "auto"
+  },
+  "nodes": [
+    {
+      "id": "dataset1",
+      "kind": "dataset",
+      "position": [
+        -400.0,
+        0.0
+      ],
+      "params": {
+        "dataset_mode": "image_folder",
+        "data_path": "",
+        "label_column": "",
+        "train_ratio": 0.7,
+        "val_ratio": 0.15,
+        "test_ratio": 0.15
+      }
+    },
+    {
+      "id": "pre1",
+      "kind": "preprocess",
+      "position": [
+        -200.0,
+        0.0
+      ],
+      "params": {
+        "preprocess_preset": "image_basic",
+        "image_size": 224
+      }
+    },
+    {
+      "id": "train1",
+      "kind": "train_pytorch",
+      "position": [
+        0.0,
+        0.0
+      ],
+      "params": {
+        "model_preset": "cnn_small",
+        "epochs": 3,
+        "batch_size": 8,
+        "learning_rate": 0.001
+      }
+    },
+    {
+      "id": "eval1",
+      "kind": "evaluate",
+      "position": [
+        200.0,
+        -80.0
+      ],
+      "params": {
+        "eval_split": "test"
+      }
+    },
+    {
+      "id": "val1",
+      "kind": "validate",
+      "position": [
+        400.0,
+        -80.0
+      ],
+      "params": {
+        "min_accuracy": 0.01
+      }
+    },
+    {
+      "id": "export1",
+      "kind": "export",
+      "position": [
+        200.0,
+        120.0
+      ],
+      "params": {
+        "export_format": "pt",
+        "export_path": ""
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node": "dataset1",
+      "source_port": "data",
+      "target_node": "pre1",
+      "target_port": "data"
+    },
+    {
+      "source_node": "pre1",
+      "source_port": "data",
+      "target_node": "train1",
+      "target_port": "data"
+    },
+    {
+      "source_node": "pre1",
+      "source_port": "data",
+      "target_node": "eval1",
+      "target_port": "data"
+    },
+    {
+      "source_node": "train1",
+      "source_port": "model",
+      "target_node": "eval1",
+      "target_port": "model"
+    },
+    {
+      "source_node": "train1",
+      "source_port": "model",
+      "target_node": "export1",
+      "target_port": "model"
+    },
+    {
+      "source_node": "eval1",
+      "source_port": "metrics",
+      "target_node": "val1",
+      "target_port": "metrics"
+    }
+  ]
+}
