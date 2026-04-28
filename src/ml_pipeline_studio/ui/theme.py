@@ -1,8 +1,10 @@
-"""Modern dark theme inspired by VS Code.
+"""Modern dark theme inspired by VS Code layout.
 
 Provides a single ``apply_theme(app)`` entrypoint that installs a Fusion
 palette and a stylesheet which gives the app a clean, flat look with rounded
-controls, a dim chrome and an accent color matching VS Code's blue.
+controls, a dim chrome and a softened red accent. The font stack prefers
+native system fonts; install Plus Jakarta Sans for closer parity with web
+branding.
 """
 
 from __future__ import annotations
@@ -22,8 +24,8 @@ COLORS = {
     "text": "#cccccc",
     "text_dim": "#9d9d9d",
     "text_strong": "#ffffff",
-    "accent": "#0e639c",         # VS Code "command" blue
-    "accent_hi": "#1177bb",
+    "accent": "#de5c5c",         # softened red (less saturated than red-600)
+    "accent_hi": "#ec8a8a",      # hover: lighter, muted
     "danger": "#a1260d",
     "ok": "#16825d",
 }
@@ -59,11 +61,11 @@ def _build_stylesheet() -> str:
     QMainWindow, QWidget {{
         background-color: {c["chrome"]};
         color: {c["text"]};
-        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
         font-size: 13px;
     }}
     * {{
-        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     }}
 
     QToolTip {{
@@ -78,17 +80,26 @@ def _build_stylesheet() -> str:
         background-color: {c["header"]};
         border-bottom: 1px solid #1a1a1a;
     }}
-    QLabel#HeaderTitle {{
-        color: {c["text_strong"]};
-        font-weight: 600;
-        font-size: 13px;
-        padding-left: 8px;
+    QWidget#HeaderBrand {{
+        padding-left: 36px;
+        padding-top: 0;
+        padding-right: 0;
+        padding-bottom: 0;
     }}
-    QLabel#HeaderLogo {{
-        color: {c["accent_hi"]};
-        font-size: 16px;
+    QLabel#HeaderBrandWord {{
+        color: {c["text_strong"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-weight: 500;
+        font-size: 15px;
+        letter-spacing: -0.02em;
+    }}
+    QLabel#HeaderBrandDot {{
+        color: {c["accent"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-size: 8px;
         font-weight: 700;
-        padding-left: 12px;
+        padding-left: 1px;
+        padding-bottom: 2px;
     }}
     QLabel#HeaderFile {{
         color: {c["text_dim"]};
@@ -138,11 +149,11 @@ def _build_stylesheet() -> str:
         background-color: {c["accent_hi"]};
     }}
     QToolButton#HeaderRunButton:pressed {{
-        background-color: #0a4f7d;
+        background-color: #c24a4a;
     }}
     QToolButton#HeaderRunButton:disabled {{
-        background-color: #2a4a60;
-        color: #99b3c2;
+        background-color: #5a4545;
+        color: #d8bcbc;
     }}
 
     /* Menus */
@@ -244,10 +255,64 @@ def _build_stylesheet() -> str:
     QDialog#WelcomeDialog {{
         background-color: {c["chrome"]};
     }}
+    QFrame#WelcomeHero {{
+        background-color: {c["bg"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 14px;
+    }}
+    QFrame#WelcomeHero QLabel#WelcomeBrandWord {{
+        color: {c["text_strong"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        letter-spacing: -0.03em;
+    }}
+    QFrame#WelcomeHero QLabel#WelcomeBrandDot {{
+        color: {c["accent"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        padding-left: 3px;
+        padding-bottom: 9px;
+    }}
+    QFrame#WelcomeSeparator {{
+        background-color: {c["border"]};
+        border: none;
+        min-height: 1px;
+        max-height: 1px;
+    }}
+    QLabel#WelcomeTagline {{
+        color: {c["text_dim"]};
+        font-size: 13px;
+        padding: 0 12px;
+    }}
+    QFrame#WelcomeRecentCard {{
+        background-color: {c["chrome_alt"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 12px;
+    }}
     QFrame#WelcomePanel {{
         background-color: {c["chrome_alt"]};
         border: 1px solid {c["border_strong"]};
         border-radius: 10px;
+    }}
+    QWidget#WelcomeBrand {{
+        padding-left: 0;
+    }}
+    QLabel#WelcomeBrandWord {{
+        color: {c["text_strong"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+    }}
+    QLabel#WelcomeBrandDot {{
+        color: {c["accent"]};
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        padding-left: 2px;
+        padding-bottom: 6px;
     }}
     QLabel#WelcomeTitle {{
         color: {c["text_strong"]};
@@ -308,5 +373,78 @@ def _build_stylesheet() -> str:
     QPushButton#WelcomeSkip:hover {{
         color: {c["text"]};
         text-decoration: underline;
+    }}
+
+    /* Inspector dock — properties bin */
+    QWidget#InspectorPane {{
+        background-color: {c["chrome"]};
+    }}
+    QWidget#InspectorNodeCard {{
+        background-color: {c["chrome"]};
+    }}
+    QLabel#InspectorNodeIcon {{
+        padding-right: 8px;
+    }}
+    QLabel#InspectorHeaderLabel {{
+        color: {c["text_dim"]};
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        min-width: 44px;
+    }}
+    QTableWidget#InspectorNodeList {{
+        background-color: transparent;
+        border: none;
+        outline: none;
+    }}
+    QTableWidget#InspectorNodeList::item {{
+        padding: 8px 6px;
+        border: none;
+    }}
+    QFrame#InspectorField {{
+        background-color: {c["chrome_alt"]};
+        border: 1px solid {c["border_strong"]};
+        border-radius: 10px;
+    }}
+    QLabel#InspectorPropLabel {{
+        color: {c["text_dim"]};
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        min-width: 108px;
+        max-width: 150px;
+    }}
+    QTabWidget#InspectorTabs::pane {{
+        border: 1px solid {c["border_strong"]};
+        border-radius: 10px;
+        background-color: {c["bg"]};
+        padding: 14px 12px;
+        top: -1px;
+    }}
+    QTabWidget#InspectorTabs QTabBar::tab {{
+        background-color: transparent;
+        color: {c["text_dim"]};
+        border: none;
+        padding: 10px 14px;
+        margin-right: 4px;
+        min-height: 20px;
+    }}
+    QTabWidget#InspectorTabs QTabBar::tab:selected {{
+        color: {c["text_strong"]};
+        font-weight: 600;
+        border-bottom: 2px solid {c["accent"]};
+        padding-bottom: 8px;
+    }}
+    QLabel#InspectorNodeTypeFooter {{
+        color: {c["text_dim"]};
+        font-size: 10px;
+        padding-top: 10px;
+        font-family: ui-monospace, "JetBrains Mono", monospace;
+    }}
+    QFrame#InspectorField QComboBox,
+    QFrame#InspectorField QLineEdit,
+    QFrame#InspectorField QAbstractSpinBox {{
+        min-height: 28px;
+        border-radius: 6px;
     }}
     """
