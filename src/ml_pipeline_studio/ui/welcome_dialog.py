@@ -1,137 +1,131 @@
-"""Modal welcome dialog: open an existing pipeline or start a new one."""
+"""Modern startup welcome dialog with Redshale wordmark."""
 
 from __future__ import annotations
 
-from typing import Literal
+from pathlib import Path
+from typing import Iterable, Literal
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QKeyEvent, QMouseEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
-from ml_pipeline_studio.ui.theme import apply_welcome_dialog_chrome, connect_welcome_dialog_chrome
+from ml_pipeline_studio.ui.redshale_brand import create_redshale_brand_widget
 
-WelcomeChoice = Literal["open", "new", "skip"]
-
-
-class ChoiceCard(QFrame):
-    clicked = Signal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("WelcomeCard")
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus | Qt.FocusPolicy.TabFocus)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
-        self.setMinimumHeight(130)
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit()
-        super().mousePressEvent(event)
-
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        k = event.key()
-        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
-            self.clicked.emit()
-            event.accept()
-            return
-        super().keyPressEvent(event)
+WelcomeChoice = Literal["open", "open_recent", "new", "skip"]
 
 
 class WelcomeDialog(QDialog):
-    """Glass-panel welcome screen: open saved pipeline, blank canvas, or dismiss."""
+    """Startup page with quick actions and a recent-files list."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, recent_files: Iterable[str], parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("WelcomeDialog")
-        self.setWindowTitle("Welcome")
+        self.setWindowTitle("Welcome to Redshale")
         self.setModal(True)
-        self.resize(492, 404)
-        self.setMinimumWidth(400)
-
-        apply_welcome_dialog_chrome(self)
-        connect_welcome_dialog_chrome(self)
+        self.resize(820, 540)
+        self.setMinimumWidth(720)
 
         self._choice: WelcomeChoice = "skip"
+        self._selected_recent: str | None = None
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(28, 28, 28, 24)
+        root.setContentsMargins(32, 28, 32, 22)
         root.setSpacing(0)
 
-        panel = QFrame()
-        panel.setObjectName("WelcomePanel")
-        root.addWidget(panel)
-        lay = QVBoxLayout(panel)
-        lay.setContentsMargins(28, 28, 28, 24)
-        lay.setSpacing(20)
+        hero = QFrame()
+        hero.setObjectName("WelcomeHero")
+        hero_lay = QVBoxLayout(hero)
+        hero_lay.setContentsMargins(28, 28, 28, 24)
+        hero_lay.setSpacing(14)
 
-        title = QLabel("ML Pipeline Studio")
-        title.setObjectName("WelcomeTitle")
+        brand_row = QHBoxLayout()
+        brand_row.addStretch(1)
+        brand = create_redshale_brand_widget(hero, variant="welcome")
+        brand_row.addWidget(brand, 0, Qt.AlignmentFlag.AlignCenter)
+        brand_row.addStretch(1)
+        hero_lay.addLayout(brand_row)
 
-        subtitle = QLabel("Open a saved pipeline or start from a blank canvas.")
-        subtitle.setObjectName("WelcomeSubtitle")
-        subtitle.setWordWrap(True)
+        tagline = QLabel(
+            "Build and run ML pipelines as a visual node graph — datasets, training, and export in one flow."
+        )
+        tagline.setObjectName("WelcomeTagline")
+        tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tagline.setWordWrap(True)
+        hero_lay.addWidget(tagline)
 
-        lay.addWidget(title)
-        lay.addWidget(subtitle)
-        lay.addSpacing(4)
+        root.addWidget(hero)
 
-        row = QHBoxLayout()
-        row.setSpacing(14)
+        sep = QFrame()
+        sep.setObjectName("WelcomeSeparator")
+        sep.setFixedHeight(1)
+        root.addWidget(sep)
 
-        self._card_open = ChoiceCard(self)
-        open_lay = QVBoxLayout(self._card_open)
-        open_lay.setSpacing(8)
-        open_lay.setContentsMargins(20, 18, 20, 18)
-        open_accent = QLabel("Open")
-        open_accent.setObjectName("WelcomeAccent")
-        open_heading = QLabel("Existing pipeline")
-        open_heading.setObjectName("WelcomeCardHeading")
-        open_hint = QLabel("Browse and load a .json pipeline from disk.")
-        open_hint.setObjectName("WelcomeCardHint")
-        open_hint.setWordWrap(True)
-        open_lay.addWidget(open_accent)
-        open_lay.addWidget(open_heading)
-        open_lay.addWidget(open_hint)
-        open_lay.addStretch()
-        self._card_open.clicked.connect(self._on_open)
+        root.addSpacing(22)
 
-        self._card_new = ChoiceCard(self)
-        new_lay = QVBoxLayout(self._card_new)
-        new_lay.setSpacing(8)
-        new_lay.setContentsMargins(20, 18, 20, 18)
-        new_accent = QLabel("New")
-        new_accent.setObjectName("WelcomeAccent")
-        new_heading = QLabel("Blank canvas")
-        new_heading.setObjectName("WelcomeCardHeading")
-        new_hint = QLabel("Start fresh and sketch a pipeline from scratch.")
-        new_hint.setObjectName("WelcomeCardHint")
-        new_hint.setWordWrap(True)
-        new_lay.addWidget(new_accent)
-        new_lay.addWidget(new_heading)
-        new_lay.addWidget(new_hint)
-        new_lay.addStretch()
-        self._card_new.clicked.connect(self._on_new)
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        btn_new = QPushButton("New pipeline")
+        btn_new.setObjectName("WelcomePrimary")
+        btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_new.clicked.connect(self._on_new)
+        btn_open = QPushButton("Open…")
+        btn_open.setObjectName("WelcomeSecondary")
+        btn_open.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_open.clicked.connect(self._on_open)
+        btn_open_recent = QPushButton("Open selected")
+        btn_open_recent.setObjectName("WelcomeSecondary")
+        btn_open_recent.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_open_recent.clicked.connect(self._on_open_recent)
+        self._btn_open_recent = btn_open_recent
+        self._btn_open_recent.setEnabled(False)
 
-        row.addWidget(self._card_open, 1)
-        row.addWidget(self._card_new, 1)
-        lay.addLayout(row)
+        actions.addWidget(btn_new)
+        actions.addWidget(btn_open)
+        actions.addWidget(btn_open_recent)
+        actions.addStretch(1)
+        root.addLayout(actions)
 
-        skip = QPushButton("Continue without changing workspace")
+        root.addSpacing(18)
+
+        recent_card = QFrame()
+        recent_card.setObjectName("WelcomeRecentCard")
+        recent_lay = QVBoxLayout(recent_card)
+        recent_lay.setContentsMargins(16, 14, 16, 14)
+        recent_lay.setSpacing(10)
+
+        recents_label = QLabel("Recent files")
+        recents_label.setObjectName("WelcomeRecentLabel")
+        recent_lay.addWidget(recents_label)
+
+        self._recent_list = QListWidget(recent_card)
+        self._recent_list.setMinimumHeight(190)
+        self._recent_list.setObjectName("WelcomeRecentList")
+        self._recent_list.itemSelectionChanged.connect(self._on_recent_selection)
+        self._recent_list.itemDoubleClicked.connect(self._on_recent_double_click)
+        recent_lay.addWidget(self._recent_list, 1)
+
+        root.addWidget(recent_card, 1)
+
+        root.addSpacing(14)
+
+        skip = QPushButton("Continue to workspace")
         skip.setObjectName("WelcomeSkip")
         skip.setCursor(Qt.CursorShape.PointingHandCursor)
         skip.setAutoDefault(False)
         skip.clicked.connect(self._on_skip)
-        lay.addWidget(skip, 0, Qt.AlignmentFlag.AlignHCenter)
+        root.addWidget(skip, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self._populate_recent_files(recent_files)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Escape:
@@ -144,8 +138,41 @@ class WelcomeDialog(QDialog):
     def choice(self) -> WelcomeChoice:
         return self._choice
 
+    @property
+    def selected_recent(self) -> str | None:
+        return self._selected_recent
+
+    def _populate_recent_files(self, paths: Iterable[str]) -> None:
+        for raw in paths:
+            p = Path(raw).expanduser()
+            if not p.exists():
+                continue
+            item = QListWidgetItem(f"{p.name}\n{p}")
+            item.setData(Qt.ItemDataRole.UserRole, str(p))
+            self._recent_list.addItem(item)
+        if self._recent_list.count() == 0:
+            empty = QListWidgetItem("No recent files yet")
+            empty.setFlags(Qt.ItemFlag.NoItemFlags)
+            self._recent_list.addItem(empty)
+
     def _on_open(self) -> None:
         self._choice = "open"
+        self.accept()
+
+    def _on_recent_selection(self) -> None:
+        item = self._recent_list.currentItem()
+        selected = item.data(Qt.ItemDataRole.UserRole) if item else None
+        self._selected_recent = str(selected) if selected else None
+        self._btn_open_recent.setEnabled(self._selected_recent is not None)
+
+    def _on_recent_double_click(self, _item: QListWidgetItem) -> None:
+        if self._selected_recent:
+            self._on_open_recent()
+
+    def _on_open_recent(self) -> None:
+        if not self._selected_recent:
+            return
+        self._choice = "open_recent"
         self.accept()
 
     def _on_new(self) -> None:

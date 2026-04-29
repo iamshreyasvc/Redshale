@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from NodeGraphQt import NodeGraph, PropertiesBinWidget
-from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from NodeGraphQt import NodeGraph
+from PySide6.QtCore import QObject, QSettings, QStandardPaths, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMainWindow,
     QMessageBox,
+    QTabWidget,
     QTextEdit,
 )
 
@@ -27,6 +28,9 @@ from ml_pipeline_studio.ui.graph_bridge import (
 )
 from ml_pipeline_studio.ui.graph_nodes import KIND_TO_NODE_TYPE
 from ml_pipeline_studio.ui.header_nav import HeaderNavBar
+from ml_pipeline_studio.ui.inspector_bin import RedshalePropertiesBinWidget
+from ml_pipeline_studio.ui.terminal_panel import TerminalPanel
+from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
 
 
 def _pytorch_image_template() -> PipelineDocument:
@@ -149,8 +153,9 @@ class _RunWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ML Pipeline Studio")
+        self.setWindowTitle("Redshale")
         self.resize(1200, 800)
+        self._qsettings = QSettings("Redshale", "Redshale")
 
         self._graph = NodeGraph()
         register_studio_nodes(self._graph)
@@ -164,15 +169,22 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self._graph.widget)
 
-        self._props = PropertiesBinWidget(node_graph=self._graph)
+        self._props = RedshalePropertiesBinWidget(node_graph=self._graph)
+        self._props.setObjectName("InspectorPane")
         dock_p = QDockWidget("Inspector", self)
+        dock_p.setObjectName("InspectorDock")
         dock_p.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_p)
 
         self._log = QTextEdit()
         self._log.setReadOnly(True)
+        self._terminal = TerminalPanel(self)
+        self._bottom_tabs = QTabWidget(self)
+        self._bottom_tabs.setObjectName("BottomPanelTabs")
+        self._bottom_tabs.addTab(self._log, "Run log")
+        self._bottom_tabs.addTab(self._terminal, "Terminal")
         dock_l = QDockWidget("Run log", self)
-        dock_l.setWidget(self._log)
+        dock_l.setWidget(self._bottom_tabs)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_l)
 
         self.statusBar().showMessage("Ready")
@@ -181,6 +193,7 @@ class MainWindow(QMainWindow):
 
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
+        QTimer.singleShot(0, self._show_welcome_page)
 
     def _build_menu(self) -> None:
         file_m = self._header.menu("File")
@@ -235,27 +248,45 @@ class MainWindow(QMainWindow):
     def _add_node(self, ntype: str) -> None:
         self._graph.create_node(ntype)
 
+    def _pipeline_file_dialog_start_dir(self) -> str:
+        """Prefer the current file's folder; otherwise ~/Documents/Redshale (created if missing)."""
+        if self._current_path is not None:
+            return str(self._current_path.parent)
+        docs = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        root = Path(docs) if docs else Path.home()
+        base = root / "Redshale"
+        base.mkdir(parents=True, exist_ok=True)
+        return str(base)
+
     def _new(self) -> None:
         self._graph.clear_session()
         self._settings = GlobalSettings()
         self._current_path = None
-        self.setWindowTitle("ML Pipeline Studio — Untitled")
+        self.setWindowTitle("Redshale — Untitled")
         self._header.set_file_label("Untitled pipeline")
         self._log.clear()
 
     def _open(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Open pipeline", "", "Pipeline JSON (*.json)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open pipeline", self._pipeline_file_dialog_start_dir(), "Pipeline JSON (*.json)"
+        )
         if not path:
             return
+        self._open_path(Path(path))
+
+    def _open_path(self, path: Path) -> bool:
         try:
             doc = load_document(path)
             self._settings = doc.settings
             apply_document_to_graph(self._graph, doc)
             self._current_path = Path(path)
-            self.setWindowTitle(f"ML Pipeline Studio — {self._current_path.name}")
+            self.setWindowTitle(f"Redshale — {self._current_path.name}")
             self._header.set_file_label(self._current_path.name)
+            self._remember_recent_file(self._current_path)
+            return True
         except Exception as e:
             QMessageBox.critical(self, "Open failed", str(e))
+            return False
 
     def _save(self) -> None:
         if self._current_path:
@@ -264,7 +295,9 @@ class MainWindow(QMainWindow):
             self._save_as()
 
     def _save_as(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save pipeline", "", "Pipeline JSON (*.json)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save pipeline", self._pipeline_file_dialog_start_dir(), "Pipeline JSON (*.json)"
+        )
         if not path:
             return
         p = Path(path)
@@ -272,25 +305,27 @@ class MainWindow(QMainWindow):
             p = p.with_suffix(".json")
         self._save_to(p)
         self._current_path = p
-        self.setWindowTitle(f"ML Pipeline Studio — {p.name}")
+        self.setWindowTitle(f"Redshale — {p.name}")
         self._header.set_file_label(p.name)
 
     def _save_to(self, path: Path) -> None:
         doc = document_from_graph(self._graph, self._settings)
         save_document(path, doc)
+        self._remember_recent_file(path)
 
     def _template_pt_image(self) -> None:
         doc = _pytorch_image_template()
         self._settings = doc.settings
         apply_document_to_graph(self._graph, doc)
         self._current_path = None
-        self.setWindowTitle("ML Pipeline Studio — Template (unsaved)")
+        self.setWindowTitle("Redshale — Template (unsaved)")
         self._header.set_file_label("Template (unsaved)")
         QMessageBox.information(
             self,
             "Template loaded",
             "Set Dataset → data_path to your ImageFolder root (class subfolders), then Run pipeline.\n"
-            "Install ML deps: pip install '.[ml]'",
+            "Install ML deps: pip install '.[ml]'\n\n"
+            "Save pipelines outside the repo: File → Save As… opens in Documents/Redshale by default.",
         )
 
     def _edit_settings(self) -> None:
@@ -372,3 +407,34 @@ class MainWindow(QMainWindow):
         if self._thread:
             self._thread.deleteLater()
             self._thread = None
+
+    def _recent_files(self) -> list[str]:
+        raw = self._qsettings.value("recent_files", [])
+        if isinstance(raw, str):
+            entries = [raw]
+        elif isinstance(raw, list):
+            entries = [str(x) for x in raw]
+        else:
+            entries = []
+        out: list[str] = []
+        for p in entries:
+            sp = str(Path(p).expanduser())
+            if Path(sp).exists() and sp not in out:
+                out.append(sp)
+        return out[:12]
+
+    def _remember_recent_file(self, path: Path) -> None:
+        p = str(path.expanduser().resolve())
+        recents = [x for x in self._recent_files() if x != p]
+        recents.insert(0, p)
+        self._qsettings.setValue("recent_files", recents[:12])
+
+    def _show_welcome_page(self) -> None:
+        dlg = WelcomeDialog(self._recent_files(), self)
+        dlg.exec()
+        if dlg.choice == "new":
+            self._new()
+        elif dlg.choice == "open":
+            self._open()
+        elif dlg.choice == "open_recent" and dlg.selected_recent:
+            self._open_path(Path(dlg.selected_recent))

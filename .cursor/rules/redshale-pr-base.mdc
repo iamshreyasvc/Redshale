@@ -1,0 +1,14 @@
+---
+description: Redshale repo — PRs target dev, not main
+alwaysApply: true
+---
+
+# GitHub: Redshale
+
+For **this repository** (`Redshale` / `iamshreyasvc/Redshale`):
+
+- **Pull requests must use `dev` as the base branch**, not `main`, unless the user explicitly requests a different base.
+- For `gh pr create`, always include `--base dev`.
+- For `gh pr edit … --base …`, use `dev` when fixing or standardizing the merge target.
+
+The GitHub default branch for this repo is **`dev`**.

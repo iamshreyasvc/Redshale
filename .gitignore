@@ -12,3 +12,9 @@ build/
 .DS_Store
 *.app
 *.spec.bak
+
+# Repo-root *.json (safety net if a pipeline is saved inside the clone — prefer Documents/Redshale in the app)
+/*.json
+
+# Default run output directory (GlobalSettings.run_output_dir)
+ml_runs/

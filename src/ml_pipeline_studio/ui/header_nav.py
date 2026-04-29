@@ -3,7 +3,7 @@
 The header is a thin custom widget that replaces the native menu bar with a
 flat, modern toolbar containing:
 
-    [logo + title]  File  Template  Add Node  Run  Settings   <file pill>   Save  Run▶
+    [Redshale + red dot]  File  Template  Add Node  Run  Settings   <file pill>   Save  Run▶
 
 Menus are exposed as ``QMenu`` instances created here and populated by
 ``MainWindow``. Quick actions (Save, Run) emit Qt signals so the main window
@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QToolButton,
     QWidget,
 )
+
+from ml_pipeline_studio.ui.redshale_brand import create_redshale_brand_widget
 
 
 class HeaderNavBar(QWidget):
@@ -50,14 +52,8 @@ class HeaderNavBar(QWidget):
         root.setContentsMargins(0, 0, 8, 0)
         root.setSpacing(2)
 
-        logo = QLabel("◆")
-        logo.setObjectName("HeaderLogo")
-        logo.setToolTip("ML Pipeline Studio")
-        root.addWidget(logo)
-
-        title = QLabel("ML Pipeline Studio")
-        title.setObjectName("HeaderTitle")
-        root.addWidget(title)
+        brand = create_redshale_brand_widget(self, variant="header")
+        root.addWidget(brand, 0, Qt.AlignmentFlag.AlignVCenter)
 
         root.addSpacing(12)
 
