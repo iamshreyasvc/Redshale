@@ -21,6 +21,8 @@ from ml_pipeline_studio.execution.engine import run_pipeline
 from ml_pipeline_studio.pipeline.document import EdgeRecord, GlobalSettings, NodeRecord, PipelineDocument
 from ml_pipeline_studio.pipeline.serialize import load_document, save_document
 from ml_pipeline_studio.pipeline.validate import PipelineValidationError
+from ml_pipeline_studio.ui.csv_label_dialog import prompt_csv_label_column
+from ml_pipeline_studio.ui.csv_preview import read_csv_column_names
 from ml_pipeline_studio.ui.graph_bridge import (
     apply_document_to_graph,
     document_from_graph,
@@ -34,7 +36,7 @@ from ml_pipeline_studio.ui.welcome_dialog import WelcomeDialog
 
 
 def _pytorch_image_template() -> PipelineDocument:
-    """Starter graph: Dataset → Preprocess → Train (PT) → Evaluate → Quality gate → Export."""
+    """Starter graph: Dataset → Preprocess → Train (neural network) → Evaluate → Quality gate → Export."""
     return PipelineDocument(
         settings=GlobalSettings(),
         nodes=[
@@ -59,9 +61,10 @@ def _pytorch_image_template() -> PipelineDocument:
             ),
             NodeRecord(
                 id="train1",
-                kind="train_pytorch",
+                kind="train",
                 position=(0.0, 0.0),
                 params={
+                    "model_type": "Neural Networks",
                     "model_preset": "cnn_small",
                     "epochs": 3,
                     "batch_size": 8,
@@ -132,6 +135,7 @@ class _RunWorker(QObject):
     finished_ok = Signal()
     failed = Signal(str)
     log_line = Signal(str)
+    print_results_table = Signal(object)
 
     def __init__(self, doc: PipelineDocument) -> None:
         super().__init__()
@@ -144,7 +148,10 @@ class _RunWorker(QObject):
             def log(s: str) -> None:
                 self.log_line.emit(s)
 
-            run_pipeline(self._doc, log)
+            def show_table(payload: object) -> None:
+                self.print_results_table.emit(payload)
+
+            run_pipeline(self._doc, log, on_print_results_table=show_table)
             self.finished_ok.emit()
         except Exception as e:
             self.failed.emit(str(e))
@@ -193,6 +200,12 @@ class MainWindow(QMainWindow):
 
         self._thread: QThread | None = None
         self._worker: _RunWorker | None = None
+
+        self._csv_picker_guard = False
+        self._csv_picker_suppressed = 0
+        self._dataset_csv_prev_path: dict[str, str] = {}
+        self._graph.property_changed.connect(self._on_graph_property_changed)
+
         QTimer.singleShot(0, self._show_welcome_page)
 
     def _build_menu(self) -> None:
@@ -278,7 +291,11 @@ class MainWindow(QMainWindow):
         try:
             doc = load_document(path)
             self._settings = doc.settings
-            apply_document_to_graph(self._graph, doc)
+            self._csv_picker_suppressed += 1
+            try:
+                apply_document_to_graph(self._graph, doc)
+            finally:
+                self._csv_picker_suppressed -= 1
             self._current_path = Path(path)
             self.setWindowTitle(f"Redshale — {self._current_path.name}")
             self._header.set_file_label(self._current_path.name)
@@ -309,14 +326,25 @@ class MainWindow(QMainWindow):
         self._header.set_file_label(p.name)
 
     def _save_to(self, path: Path) -> None:
-        doc = document_from_graph(self._graph, self._settings)
-        save_document(path, doc)
+        try:
+            doc = document_from_graph(self._graph, self._settings)
+            save_document(path, doc)
+        except Exception as e:
+            self.statusBar().showMessage(f"Save failed: {e}", 6000)
+            QMessageBox.critical(self, "Save failed", str(e))
+            return
         self._remember_recent_file(path)
+        self.statusBar().showMessage(f"Saved “{path.name}”", 4000)
+        self._header.show_save_feedback()
 
     def _template_pt_image(self) -> None:
         doc = _pytorch_image_template()
         self._settings = doc.settings
-        apply_document_to_graph(self._graph, doc)
+        self._csv_picker_suppressed += 1
+        try:
+            apply_document_to_graph(self._graph, doc)
+        finally:
+            self._csv_picker_suppressed -= 1
         self._current_path = None
         self.setWindowTitle("Redshale — Template (unsaved)")
         self._header.set_file_label("Template (unsaved)")
@@ -358,6 +386,14 @@ class MainWindow(QMainWindow):
     def _append_log(self, s: str) -> None:
         self._log.append(s)
 
+    @Slot(object)
+    def _on_print_results_table(self, payload: object) -> None:
+        if not isinstance(payload, dict):
+            return
+        from ml_pipeline_studio.ui.print_results_dialog import open_print_results_dialog
+
+        open_print_results_dialog(self, payload)
+
     def _run_pipeline(self) -> None:
         doc = document_from_graph(self._graph, self._settings)
         try:
@@ -381,6 +417,10 @@ class MainWindow(QMainWindow):
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.log_line.connect(self._append_log)
+        self._worker.print_results_table.connect(
+            self._on_print_results_table,
+            Qt.ConnectionType.QueuedConnection,
+        )
         self._worker.finished_ok.connect(self._on_run_finished)
         self._worker.failed.connect(self._on_run_failed)
         self._worker.finished_ok.connect(self._thread.quit)
@@ -407,6 +447,89 @@ class MainWindow(QMainWindow):
         if self._thread:
             self._thread.deleteLater()
             self._thread = None
+
+    def _dataset_node_key(self, node) -> str:
+        pid = node.get_property("pipeline_node_id")
+        return str(pid) if pid else node.id()
+
+    def _on_graph_property_changed(self, node, prop_name, prop_value) -> None:
+        if self._csv_picker_guard:
+            return
+        if self._csv_picker_suppressed > 0:
+            if getattr(node.__class__, "KIND", None) == "dataset" and prop_name == "data_path":
+                self._dataset_csv_prev_path[self._dataset_node_key(node)] = str(prop_value or "").strip()
+            return
+        if getattr(node.__class__, "KIND", None) != "dataset":
+            return
+
+        if prop_name == "dataset_mode":
+            self._maybe_prompt_csv_label_after_mode_change(node, str(prop_value))
+            return
+
+        if prop_name != "data_path":
+            return
+
+        key = self._dataset_node_key(node)
+        path = str(prop_value or "").strip()
+
+        if not path.lower().endswith(".csv"):
+            self._dataset_csv_prev_path[key] = path
+            return
+
+        mode = node.get_property("dataset_mode")
+        if mode not in ("csv_tabular", "csv_tabular_regression"):
+            self._dataset_csv_prev_path[key] = path
+            return
+
+        p = Path(path).expanduser()
+        if not p.is_file():
+            self._dataset_csv_prev_path[key] = path
+            return
+
+        prev = self._dataset_csv_prev_path.get(key, "")
+        if path == prev:
+            return
+
+        col, header_row, ok = prompt_csv_label_column(self, p)
+        self._csv_picker_guard = True
+        try:
+            if ok and col:
+                node.set_property("label_column", col, push_undo=False)
+                node.set_property("csv_header_row", int(header_row), push_undo=False)
+                self._dataset_csv_prev_path[key] = str(node.get_property("data_path") or "").strip()
+            else:
+                self._dataset_csv_prev_path[key] = prev
+                node.set_property("data_path", prev, push_undo=False)
+        finally:
+            self._csv_picker_guard = False
+
+    def _maybe_prompt_csv_label_after_mode_change(self, node, new_mode: str) -> None:
+        if new_mode not in ("csv_tabular", "csv_tabular_regression"):
+            return
+        path = str(node.get_property("data_path") or "").strip()
+        if not path.lower().endswith(".csv"):
+            return
+        p = Path(path).expanduser()
+        if not p.is_file():
+            return
+        try:
+            hdr = int(node.get_property("csv_header_row") or 0)
+            cols = read_csv_column_names(p, header_row=hdr)
+        except Exception as e:
+            QMessageBox.warning(self, "CSV", f"Could not read columns:\n{e}")
+            return
+        lc = str(node.get_property("label_column") or "").strip()
+        if lc and lc in cols:
+            return
+        col, header_row, ok = prompt_csv_label_column(self, p)
+        if not (ok and col):
+            return
+        self._csv_picker_guard = True
+        try:
+            node.set_property("label_column", col, push_undo=False)
+            node.set_property("csv_header_row", int(header_row), push_undo=False)
+        finally:
+            self._csv_picker_guard = False
 
     def _recent_files(self) -> list[str]:
         raw = self._qsettings.value("recent_files", [])

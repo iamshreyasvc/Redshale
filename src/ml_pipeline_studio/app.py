@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import sys
 
+# NodeGraphQt loads SVG support via Qt.py, which only exposes QtSvg if this binding exists.
+# PyInstaller does not trace that path, so import it here so the module and libQt6Svg are collected.
+import PySide6.QtSvg  # noqa: F401
 from PySide6.QtWidgets import QApplication
 
 from ml_pipeline_studio.nodegraphqt_compat import apply_nodegraphqt_compat
