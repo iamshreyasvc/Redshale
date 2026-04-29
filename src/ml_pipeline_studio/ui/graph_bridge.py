@@ -14,14 +14,17 @@ PARAM_KEYS: dict[str, list[str]] = {
         "dataset_mode",
         "data_path",
         "label_column",
+        "csv_header_row",
         "train_ratio",
         "val_ratio",
         "test_ratio",
     ],
     "preprocess": ["preprocess_preset", "image_size"],
-    "train_pytorch": ["model_preset", "epochs", "batch_size", "learning_rate"],
+    "train": ["model_type", "model_preset", "epochs", "batch_size", "learning_rate", "missing_value_strategy"],
+    "train_pytorch": ["model_type", "model_preset", "epochs", "batch_size", "learning_rate"],
     "train_tensorflow": ["model_preset", "epochs", "batch_size", "learning_rate"],
     "evaluate": ["eval_split"],
+    "print_results": ["result_splits", "include_roc_auc"],
     "validate": ["min_accuracy"],
     "export": ["export_format", "export_path"],
 }
@@ -130,13 +133,18 @@ def apply_document_to_graph(graph: NodeGraph, doc: PipelineDocument) -> None:
     gn_by_pid: dict[str, Any] = {}
 
     for nr in doc.nodes:
-        ntype = KIND_TO_NODE_TYPE.get(nr.kind)
+        eff_kind = nr.kind
+        eff_params = dict(nr.params)
+        if eff_kind == "train_pytorch":
+            eff_kind = "train"
+            eff_params.setdefault("model_type", "Neural Networks")
+        ntype = KIND_TO_NODE_TYPE.get(eff_kind)
         if not ntype:
             continue
-        gn = graph.create_node(ntype, name=nr.kind, pos=nr.position)
+        gn = graph.create_node(ntype, name=eff_kind, pos=nr.position)
         gn.set_property("pipeline_node_id", nr.id, push_undo=False)
         gn.set_pos(nr.position[0], nr.position[1])
-        for k, v in nr.params.items():
+        for k, v in eff_params.items():
             try:
                 gn.set_property(k, v, push_undo=False)
             except Exception:

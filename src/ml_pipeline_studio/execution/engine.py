@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -21,12 +22,18 @@ def run_pipeline(
     doc: PipelineDocument,
     log: Any,
     run_root: str | Path | None = None,
+    on_print_results_table: Callable[[dict[str, Any]], None] | None = None,
 ) -> RunContext:
     """Validate and execute the pipeline in topological order."""
     validate_pipeline(doc)
     run_dir = Path(run_root or doc.settings.run_output_dir).expanduser()
     run_dir.mkdir(parents=True, exist_ok=True)
-    ctx = RunContext(settings=doc.settings, run_dir=run_dir, log=log)
+    ctx = RunContext(
+        settings=doc.settings,
+        run_dir=run_dir,
+        log=log,
+        on_print_results_table=on_print_results_table,
+    )
     incoming = _incoming_ports(doc)
     nodes_by_id: dict[str, NodeRecord] = {n.id: n for n in doc.nodes}
 

@@ -99,4 +99,21 @@ def execute_export(node: NodeRecord, ctx: RunContext, model_artifact: dict[str, 
             raise ValueError(f"Unknown export_format for TensorFlow: {fmt!r} (use saved_model)")
         return
 
+    if fw in ("sklearn", "xgboost"):
+        src = Path(model_artifact["path"])
+        if fmt in ("pt", "pth", "state_dict"):
+            ctx.append_log(
+                f"  export_format={fmt!r} is for PyTorch checkpoints; "
+                f"{fw} models are saved as joblib — exporting as joblib."
+            )
+            fmt = "joblib"
+        if fmt in ("joblib", "pkl", "pickle"):
+            dest = dest if str(dest).endswith((".joblib", ".pkl", ".pickle")) else dest.with_suffix(".joblib")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            ctx.append_log(f"  Exported {fw} bundle → {dest}")
+        else:
+            raise ValueError(f"Unknown export_format for {fw}: {fmt!r} (use joblib)")
+        return
+
     raise ValueError(f"Unknown framework {fw!r}")

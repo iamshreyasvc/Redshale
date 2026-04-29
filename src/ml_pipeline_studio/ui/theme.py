@@ -137,6 +137,10 @@ def _build_stylesheet() -> str:
         background-color: {c["header_hi"]};
         color: {c["text_strong"]};
     }}
+    QToolButton#HeaderActionButton:pressed {{
+        background-color: {c["border_strong"]};
+        color: {c["text_strong"]};
+    }}
     QToolButton#HeaderRunButton {{
         color: #ffffff;
         background-color: {c["accent"]};

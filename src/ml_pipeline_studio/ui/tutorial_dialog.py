@@ -29,14 +29,14 @@ _STEPS: tuple[TutorialStep, ...] = (
     TutorialStep(
         "1. Build your pipeline graph",
         "Use Add node in the menu bar to insert Dataset, Preprocess, Train, "
-        "Evaluate, and Export nodes. Drag nodes on the canvas to arrange the flow "
+        "Evaluate, Print results, and Export nodes. Drag nodes on the canvas to arrange the flow "
         "left-to-right.",
     ),
     TutorialStep(
         "2. Connect nodes in order",
         "Create links by dragging from an output port (right side) to a compatible "
         "input port (left side) on the next node. A valid chain is usually "
-        "Dataset -> Preprocess -> Train -> Evaluate/Export.",
+        "Dataset -> Preprocess -> Train -> Evaluate / Print results / Export.",
     ),
     TutorialStep(
         "3. Configure every node in Inspector",

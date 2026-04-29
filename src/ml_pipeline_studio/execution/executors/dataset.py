@@ -70,7 +70,8 @@ def execute_dataset(node: NodeRecord, ctx: RunContext) -> None:
     elif mode == "csv_tabular":
         if not root.is_file():
             raise FileNotFoundError(root)
-        df = pd.read_csv(root)
+        header_row = int(p.get("csv_header_row", 0))
+        df = pd.read_csv(root, header=header_row)
         if df.shape[1] < 2:
             raise ValueError("CSV needs at least feature columns + target column")
         label_col = p.get("label_column") or df.columns[-1]
@@ -99,5 +100,33 @@ def execute_dataset(node: NodeRecord, ctx: RunContext) -> None:
             "class_names": [str(u) for u in uniq],
         }
         ctx.append_log(f"  Loaded tabular data {X.shape}, {len(uniq)} classes")
+    elif mode == "csv_tabular_regression":
+        if not root.is_file():
+            raise FileNotFoundError(root)
+        header_row = int(p.get("csv_header_row", 0))
+        df = pd.read_csv(root, header=header_row)
+        if df.shape[1] < 2:
+            raise ValueError("CSV needs at least feature columns + target column")
+        label_col = p.get("label_column") or df.columns[-1]
+        if label_col not in df.columns:
+            raise ValueError(f"label_column {label_col!r} not in CSV")
+        y_raw = df[label_col].values
+        X_df = df.drop(columns=[label_col])
+        X = X_df.select_dtypes(include=[np.number]).values.astype(np.float32)
+        if X.shape[1] == 0:
+            raise ValueError("No numeric feature columns after excluding label")
+        y = np.asarray(y_raw, dtype=np.float64)
+        train_i, val_i, test_i = _split_indices(len(y), train_r, val_r, test_r, ctx.settings.random_seed)
+        ctx.artifacts[node.id] = {
+            "kind": "dataset",
+            "task": "tabular_regression",
+            "X": X,
+            "y": y,
+            "train_idx": train_i,
+            "val_idx": val_i,
+            "test_idx": test_i,
+            "n_targets": 1,
+        }
+        ctx.append_log(f"  Loaded tabular regression {X.shape}, target={label_col!r}")
     else:
         raise ValueError(f"Unknown dataset_mode {mode!r}")
