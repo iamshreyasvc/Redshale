@@ -54,7 +54,7 @@ class DatasetNode(BaseNode):
             "dataset_mode",
             "image_folder",
             tooltip="Data source format used by this pipeline.",
-            items=["image_folder", "csv_tabular"],
+            items=["image_folder", "csv_tabular", "csv_tabular_regression"],
             widget_type=W.QCOMBO_BOX.value,
             tab=TAB_DATA,
         )
@@ -63,7 +63,7 @@ class DatasetNode(BaseNode):
             "data_path",
             "",
             widget_type=W.FILE_OPEN.value,
-            tooltip="Folder or file path for dataset input.",
+            tooltip="Folder (images) or CSV file. For CSV tabular modes, a preview opens to choose header and label column.",
             tab=TAB_DATA,
         )
         _add_param(
@@ -71,7 +71,15 @@ class DatasetNode(BaseNode):
             "label_column",
             "",
             widget_type=W.QLINE_EDIT.value,
-            tooltip="Column name containing class labels (CSV mode only).",
+            tooltip="Target column: class labels (classification CSV) or numeric target (regression CSV).",
+            tab=TAB_DATA,
+        )
+        _add_param(
+            self,
+            "csv_header_row",
+            0,
+            widget_type=W.QSPIN_BOX.value,
+            tooltip="0 = first line of the file is the header row (column names). Increase if metadata lines appear above the real header.",
             tab=TAB_DATA,
         )
         _add_param(
@@ -129,10 +137,10 @@ class PreprocessNode(BaseNode):
         )
 
 
-class TrainPyTorchNode(BaseNode):
+class TrainNode(BaseNode):
     __identifier__ = IDENT
-    NODE_NAME = "Train (PyTorch)"
-    KIND = "train_pytorch"
+    NODE_NAME = "Train"
+    KIND = "train"
 
     def __init__(self) -> None:
         super().__init__()
@@ -141,9 +149,18 @@ class TrainPyTorchNode(BaseNode):
         self.create_property("pipeline_node_id", str(uuid.uuid4()), widget_type=W.HIDDEN.value)
         _add_param(
             self,
+            "model_type",
+            "Neural Networks",
+            tooltip="Estimator family; Neural Networks are trained with PyTorch (CNN or MLP).",
+            items=["Linear Regression", "Logistic Regression", "XGBoost", "Neural Networks"],
+            widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_MODEL,
+        )
+        _add_param(
+            self,
             "model_preset",
             "cnn_small",
-            tooltip="Model architecture preset.",
+            tooltip="Architecture preset (Neural Network only: CNN for images, MLP for tabular).",
             items=["cnn_small", "mlp_tabular"],
             widget_type=W.QCOMBO_BOX.value,
             tab=TAB_MODEL,
@@ -171,6 +188,25 @@ class TrainPyTorchNode(BaseNode):
             widget_type=W.QDOUBLESPIN_BOX.value,
             tooltip="Optimizer step size for parameter updates.",
             tab=TAB_TRAINING,
+        )
+        _add_param(
+            self,
+            "missing_value_strategy",
+            "impute_median",
+            tooltip=(
+                "How to handle non-finite feature values (NaN/±inf) for sklearn linear/logistic models. "
+                "Imputation fits on the train split only. "
+                "HistGradientBoosting fits a tree model that accepts NaN in X without imputation."
+            ),
+            items=[
+                "impute_median",
+                "impute_mean",
+                "impute_most_frequent",
+                "drop_rows",
+                "hist_gradient_boosting",
+            ],
+            widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_MODEL,
         )
 
 
@@ -241,6 +277,50 @@ class EvaluateNode(BaseNode):
         )
 
 
+class PrintResultsNode(BaseNode):
+    __identifier__ = IDENT
+    NODE_NAME = "Print results"
+    KIND = "print_results"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_input("model")
+        self.add_input("data")
+        self.create_property("pipeline_node_id", str(uuid.uuid4()), widget_type=W.HIDDEN.value)
+        _add_param(
+            self,
+            "result_splits",
+            "all",
+            tooltip=(
+                "Which dataset splits to score: train / val (validation) / test. "
+                "When the pipeline runs, a modal table shows accuracy, loss, R², MSE, and optional ROC-AUC; "
+                "one line is also written to the Run log."
+            ),
+            items=[
+                "all",
+                "train_val_test",
+                "train",
+                "val",
+                "validation",
+                "test",
+                "train_val",
+                "train_test",
+                "val_test",
+            ],
+            widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_EVAL,
+        )
+        _add_param(
+            self,
+            "include_roc_auc",
+            "yes",
+            tooltip="For tabular classification only: append ROC-AUC when class probabilities are available (sklearn, XGBoost, PyTorch, TensorFlow).",
+            items=["yes", "no"],
+            widget_type=W.QCOMBO_BOX.value,
+            tab=TAB_EVAL,
+        )
+
+
 class ValidateNode(BaseNode):
     __identifier__ = IDENT
     NODE_NAME = "Quality gate"
@@ -255,7 +335,7 @@ class ValidateNode(BaseNode):
             "min_accuracy",
             0.5,
             widget_type=W.QDOUBLESPIN_BOX.value,
-            tooltip="Minimum required accuracy to pass this quality gate.",
+            tooltip="Minimum accuracy (classification) or minimum R² (regression) to pass.",
             tab=TAB_QUALITY,
         )
 
@@ -273,8 +353,12 @@ class ExportNode(BaseNode):
             self,
             "export_format",
             "pt",
-            tooltip="Serialization format for the trained model.",
-            items=["pt", "onnx", "saved_model"],
+            tooltip=(
+                "Output format must match the Train node: pt/onnx for PyTorch, saved_model for TensorFlow, "
+                "joblib for scikit-learn or XGBoost. If this is left at pt while the model is sklearn/XGBoost, "
+                "export still uses joblib automatically."
+            ),
+            items=["pt", "onnx", "saved_model", "joblib"],
             widget_type=W.QCOMBO_BOX.value,
             tab=TAB_EXPORT,
         )
@@ -291,9 +375,10 @@ class ExportNode(BaseNode):
 ALL_STUDIO_NODES = [
     DatasetNode,
     PreprocessNode,
-    TrainPyTorchNode,
+    TrainNode,
     TrainTensorFlowNode,
     EvaluateNode,
+    PrintResultsNode,
     ValidateNode,
     ExportNode,
 ]

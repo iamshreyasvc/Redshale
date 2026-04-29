@@ -8,6 +8,8 @@ from ml_pipeline_studio.kinds import (
     EVALUATE,
     EXPORT,
     PREPROCESS,
+    PRINT_RESULTS,
+    TRAIN,
     TRAIN_PYTORCH,
     TRAIN_TENSORFLOW,
     VALIDATE,
@@ -45,17 +47,17 @@ def _run_preprocess(
     execute_preprocess(node, ctx, ctx.artifacts[data_id])
 
 
-def _run_train_pt(
+def _run_train(
     node: NodeRecord,
     src_by_port: dict[str, str],
     ctx: RunContext,
     doc: PipelineDocument,
     incoming: dict[tuple[str, str], str],
 ) -> None:
-    from ml_pipeline_studio.execution.executors.train_pytorch import execute_train_pytorch
+    from ml_pipeline_studio.execution.executors.train import execute_train
 
     data_id = src_by_port["data"]
-    execute_train_pytorch(node, ctx, ctx.artifacts[data_id])
+    execute_train(node, ctx, ctx.artifacts[data_id])
 
 
 def _run_train_tf(
@@ -111,14 +113,30 @@ def _run_export(
     execute_export(node, ctx, ctx.artifacts[mid])
 
 
+def _run_print_results(
+    node: NodeRecord,
+    src_by_port: dict[str, str],
+    ctx: RunContext,
+    doc: PipelineDocument,
+    incoming: dict[tuple[str, str], str],
+) -> None:
+    from ml_pipeline_studio.execution.executors.print_results import execute_print_results
+
+    mid = src_by_port["model"]
+    did = src_by_port["data"]
+    execute_print_results(node, ctx, ctx.artifacts[mid], ctx.artifacts[did])
+
+
 EXECUTORS: dict[str, ExecutorFn] = {
     DATASET: _run_dataset,
     PREPROCESS: _run_preprocess,
-    TRAIN_PYTORCH: _run_train_pt,
+    TRAIN: _run_train,
+    TRAIN_PYTORCH: _run_train,
     TRAIN_TENSORFLOW: _run_train_tf,
     EVALUATE: _run_evaluate,
     VALIDATE: _run_validate,
     EXPORT: _run_export,
+    PRINT_RESULTS: _run_print_results,
 }
 
 __all__ = ["EXECUTORS"]

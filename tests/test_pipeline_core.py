@@ -39,9 +39,15 @@ def _minimal_valid_doc() -> PipelineDocument:
             ),
             NodeRecord(
                 id="t1",
-                kind="train_pytorch",
+                kind="train",
                 position=(200.0, 0.0),
-                params={"epochs": 1, "batch_size": 4, "learning_rate": 0.01, "model_preset": "mlp_tabular"},
+                params={
+                    "model_type": "Logistic Regression",
+                    "epochs": 1,
+                    "batch_size": 4,
+                    "learning_rate": 0.01,
+                    "model_preset": "mlp_tabular",
+                },
             ),
             NodeRecord(
                 id="e1",
@@ -59,7 +65,7 @@ def _minimal_valid_doc() -> PipelineDocument:
                 id="x1",
                 kind="export",
                 position=(300.0, 100.0),
-                params={"export_format": "pt", "export_path": "/tmp/out.pt"},
+                params={"export_format": "joblib", "export_path": "/tmp/out.joblib"},
             ),
         ],
         edges=[
@@ -105,6 +111,38 @@ def _minimal_valid_doc() -> PipelineDocument:
 
 def test_validate_accepts_minimal_dag() -> None:
     validate_pipeline(_minimal_valid_doc())
+
+
+def test_validate_accepts_print_results_sink() -> None:
+    d = _minimal_valid_doc()
+    d.nodes.append(
+        NodeRecord(
+            id="pr1",
+            kind="print_results",
+            position=(350.0, 120.0),
+            params={"result_splits": "all", "include_roc_auc": "no"},
+        )
+    )
+    d.edges.extend(
+        [
+            EdgeRecord(
+                source_node="t1",
+                source_port="model",
+                target_node="pr1",
+                target_port="model",
+            ),
+            EdgeRecord(
+                source_node="p1",
+                source_port="data",
+                target_node="pr1",
+                target_port="data",
+            ),
+        ]
+    )
+    validate_pipeline(d)
+    order = topological_order(d)
+    assert "pr1" in order
+    assert order.index("t1") < order.index("pr1")
 
 
 def test_validate_rejects_cycle() -> None:
@@ -155,3 +193,58 @@ def test_json_schema_version() -> None:
     d = _minimal_valid_doc()
     raw = json.loads(d.model_dump_json())
     assert raw["version"] == 1
+
+
+def test_load_document_migrates_train_pytorch(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "settings": {
+                    "random_seed": 42,
+                    "run_output_dir": ".",
+                    "pytorch_device": "auto",
+                    "tensorflow_device": "auto",
+                },
+                "nodes": [
+                    {
+                        "id": "d",
+                        "kind": "dataset",
+                        "position": [0.0, 0.0],
+                        "params": {
+                            "dataset_mode": "csv_tabular",
+                            "data_path": "/tmp/x.csv",
+                            "train_ratio": 0.7,
+                            "val_ratio": 0.15,
+                            "test_ratio": 0.15,
+                        },
+                    },
+                    {
+                        "id": "t",
+                        "kind": "train_pytorch",
+                        "position": [1.0, 0.0],
+                        "params": {
+                            "model_preset": "mlp_tabular",
+                            "epochs": 1,
+                            "batch_size": 4,
+                            "learning_rate": 0.01,
+                        },
+                    },
+                ],
+                "edges": [
+                    {
+                        "source_node": "d",
+                        "source_port": "data",
+                        "target_node": "t",
+                        "target_port": "data",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    doc = load_document(path)
+    train = next(n for n in doc.nodes if n.id == "t")
+    assert train.kind == "train"
+    assert train.params.get("model_type") == "Neural Networks"

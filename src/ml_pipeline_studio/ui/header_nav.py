@@ -12,7 +12,7 @@ can wire them to the same handlers used by keyboard shortcuts.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -41,7 +41,12 @@ class HeaderNavBar(QWidget):
         self._menus: dict[str, QMenu] = {}
         self._menu_buttons: dict[str, QToolButton] = {}
         self._file_label: QLabel
+        self._save_button: QToolButton
         self._run_button: QToolButton
+
+        self._save_feedback_timer = QTimer(self)
+        self._save_feedback_timer.setSingleShot(True)
+        self._save_feedback_timer.timeout.connect(self._reset_save_button_label)
 
         self._build()
 
@@ -78,6 +83,7 @@ class HeaderNavBar(QWidget):
         save_btn.setToolTip("Save pipeline (⌘S)")
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         save_btn.clicked.connect(self.save_clicked.emit)
+        self._save_button = save_btn
         root.addWidget(save_btn)
 
         run_btn = QToolButton()
@@ -124,3 +130,14 @@ class HeaderNavBar(QWidget):
         else:
             self._run_button.setText("▶  Run")
             self._run_button.setEnabled(True)
+
+    def show_save_feedback(self, duration_ms: int = 1600) -> None:
+        """Briefly replace the Save label so the user sees confirmation."""
+        self._save_button.setText("✓  Saved")
+        self._save_button.setToolTip("Pipeline saved to disk")
+        self._save_feedback_timer.stop()
+        self._save_feedback_timer.start(duration_ms)
+
+    def _reset_save_button_label(self) -> None:
+        self._save_button.setText("Save")
+        self._save_button.setToolTip("Save pipeline (⌘S)")

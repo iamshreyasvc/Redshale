@@ -24,7 +24,7 @@ def execute_preprocess(node: NodeRecord, ctx: RunContext, data_artifact: dict[st
         else:
             out["normalize"] = "imagenet"
         ctx.append_log(f"  Image preprocess: size={size}, preset={preset}")
-    elif task == "tabular_classification":
+    elif task in ("tabular_classification", "tabular_regression"):
         X = data_artifact["X"]
         train_i = data_artifact["train_idx"]
         if preset in ("tabular_standard", "tabular_standardize"):

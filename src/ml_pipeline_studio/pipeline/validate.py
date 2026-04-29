@@ -7,6 +7,8 @@ from ml_pipeline_studio.kinds import (
     EVALUATE,
     EXPORT,
     PREPROCESS,
+    PRINT_RESULTS,
+    TRAIN,
     TRAIN_PYTORCH,
     TRAIN_TENSORFLOW,
     VALIDATE,
@@ -24,7 +26,7 @@ def _port_specs(kind: str) -> tuple[list[str], list[str]]:
         return ([], ["data"])
     if kind == PREPROCESS:
         return (["data"], ["data"])
-    if kind in (TRAIN_PYTORCH, TRAIN_TENSORFLOW):
+    if kind in (TRAIN, TRAIN_PYTORCH, TRAIN_TENSORFLOW):
         return (["data"], ["model"])
     if kind == EVALUATE:
         return (["model", "data"], ["metrics"])
@@ -32,6 +34,8 @@ def _port_specs(kind: str) -> tuple[list[str], list[str]]:
         return (["metrics"], [])
     if kind == EXPORT:
         return (["model"], [])
+    if kind == PRINT_RESULTS:
+        return (["model", "data"], [])
     return ([], [])
 
 
@@ -101,7 +105,7 @@ def validate_pipeline(doc: PipelineDocument) -> None:
     if len(datasets) != 1:
         raise PipelineValidationError("Pipeline must contain exactly one Dataset node")
 
-    trains = [n for n in doc.nodes if n.kind in (TRAIN_PYTORCH, TRAIN_TENSORFLOW)]
+    trains = [n for n in doc.nodes if n.kind in (TRAIN, TRAIN_PYTORCH, TRAIN_TENSORFLOW)]
     if not trains:
         raise PipelineValidationError("Pipeline must contain at least one Train node")
 

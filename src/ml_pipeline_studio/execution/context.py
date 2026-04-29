@@ -15,6 +15,8 @@ class RunContext:
     log: Callable[[str], None]
     artifacts: dict[str, Any] = field(default_factory=dict)
     cancelled: bool = False
+    #: Invoked when a Print results node finishes (typically bound to a Qt signal for main-thread UI).
+    on_print_results_table: Callable[[dict[str, Any]], None] | None = None
 
     def append_log(self, msg: str) -> None:
         self.log(msg)
