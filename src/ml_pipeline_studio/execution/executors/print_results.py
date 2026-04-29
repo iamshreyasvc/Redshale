@@ -8,7 +8,6 @@ from ml_pipeline_studio.execution.context import RunContext
 from ml_pipeline_studio.execution.split_metrics import compute_split_metrics
 from ml_pipeline_studio.pipeline.document import NodeRecord
 
-
 _SPLIT_PRESETS: dict[str, list[tuple[str, str]]] = {
     "train_val_test": [("train", "train_idx"), ("val", "val_idx"), ("test", "test_idx")],
     "all": [("train", "train_idx"), ("val", "val_idx"), ("test", "test_idx")],

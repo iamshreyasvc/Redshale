@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
 from ml_pipeline_studio.execution.context import RunContext
 from ml_pipeline_studio.execution.split_metrics import compute_split_metrics
 from ml_pipeline_studio.pipeline.document import NodeRecord
@@ -18,7 +16,6 @@ def execute_evaluate(
     split = node.params.get("eval_split", "test")
     base = data_artifact.get("base", data_artifact)
     task = model_artifact["task"]
-    fw = model_artifact["framework"]
 
     if split == "val":
         idx_key = "val_idx"

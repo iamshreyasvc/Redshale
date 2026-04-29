@@ -9,7 +9,6 @@ import numpy as np
 from ml_pipeline_studio.execution.context import RunContext
 from ml_pipeline_studio.pipeline.document import NodeRecord
 
-
 _MISSING_VALUE_STRATEGIES: frozenset[str] = frozenset(
     {
         "impute_median",
