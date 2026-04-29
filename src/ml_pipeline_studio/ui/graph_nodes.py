@@ -63,7 +63,10 @@ class DatasetNode(BaseNode):
             "data_path",
             "",
             widget_type=W.FILE_OPEN.value,
-            tooltip="Folder (images) or CSV file. For CSV tabular modes, a preview opens to choose header and label column.",
+            tooltip=(
+                "Folder (images) or CSV file. For CSV tabular modes, a preview opens to choose "
+                "header and label column."
+            ),
             tab=TAB_DATA,
         )
         _add_param(
@@ -79,7 +82,10 @@ class DatasetNode(BaseNode):
             "csv_header_row",
             0,
             widget_type=W.QSPIN_BOX.value,
-            tooltip="0 = first line of the file is the header row (column names). Increase if metadata lines appear above the real header.",
+            tooltip=(
+                "0 = first line of the file is the header row (column names). "
+                "Increase if metadata lines appear above the real header."
+            ),
             tab=TAB_DATA,
         )
         _add_param(
@@ -314,7 +320,10 @@ class PrintResultsNode(BaseNode):
             self,
             "include_roc_auc",
             "yes",
-            tooltip="For tabular classification only: append ROC-AUC when class probabilities are available (sklearn, XGBoost, PyTorch, TensorFlow).",
+            tooltip=(
+                "For tabular classification only: append ROC-AUC when class probabilities are "
+                "available (sklearn, XGBoost, PyTorch, TensorFlow)."
+            ),
             items=["yes", "no"],
             widget_type=W.QCOMBO_BOX.value,
             tab=TAB_EVAL,
